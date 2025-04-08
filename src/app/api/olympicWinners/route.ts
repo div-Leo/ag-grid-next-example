@@ -14,7 +14,10 @@ class OlympicWinnersService {
   static async getData(request: any) {
     try {
       // Generate SQL using QueryBuilder
-      const SQL = QueryBuilder.getRowsSql(request);
+      const SQL = QueryBuilder.getRowsSql({
+        ...request,
+        tableName: 'sample_data.olympic_winners'
+      });
       console.log("Generated SQL:", SQL);
 
       // Execute the query using our database utility

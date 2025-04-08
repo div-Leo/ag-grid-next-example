@@ -7,6 +7,7 @@ interface RequestObject {
   endRow: number;
   filterModel?: { [key: string]: FilterItem };
   sortModel?: SortModelItem[];
+  tableName: string;
 }
 
 interface RowGroupCol {
@@ -36,7 +37,7 @@ export class QueryBuilder {
   public static getRowsSql(request: RequestObject): string {
 
     const selectSql = this.createSelectSql(request);
-    const fromSql = ' FROM sample_data.olympic_winners ';
+    const fromSql = this.createFromSql(request);
     const whereSql = this.createWhereSql(request);
     const limitSql = this.createLimitSql(request);
 
@@ -48,6 +49,11 @@ export class QueryBuilder {
     console.log(SQL);
 
     return SQL;
+  }
+
+  private static createFromSql(request: RequestObject): string {
+    const tableName = request.tableName;
+    return ' FROM ' + tableName;
   }
 
   private static createSelectSql(request: RequestObject): string {
