@@ -1,103 +1,168 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { AgGridReact } from "ag-grid-react";
+import {
+  ColDef,
+  IServerSideDatasource,
+  IServerSideGetRowsRequest,
+  ModuleRegistry,
+  ValidationModule,
+  TextFilterModule,
+  NumberFilterModule,
+  DateFilterModule,
+  CustomFilterModule,
+  IServerSideGetRowsParams,
+  themeQuartz
+} from "ag-grid-community";
+import {
+  MultiFilterModule,
+  GroupFilterModule,
+  ColumnMenuModule,
+  ColumnsToolPanelModule,
+  ContextMenuModule,
+  ServerSideRowModelModule,
+} from "ag-grid-enterprise";
+
+
+ModuleRegistry.registerModules([
+  ColumnsToolPanelModule,
+  ColumnMenuModule,
+  ContextMenuModule,
+  ServerSideRowModelModule,
+  MultiFilterModule,
+  GroupFilterModule,
+  TextFilterModule,
+  NumberFilterModule,
+  DateFilterModule,
+  CustomFilterModule,
+  ValidationModule /* Development Only */,
+]);
+
+
+export interface IOlympicData {
+  athlete: string,
+  age: number,
+  country: string,
+  year: number,
+  date: string,
+  sport: string,
+  gold: number,
+  silver: number,
+  bronze: number,
+  total: number
+}
+
+const myTheme = themeQuartz
+  .withParams({
+    backgroundColor: "#292C3D",
+    accentColor: "#6271EB",
+    browserColorScheme: "dark",
+    chromeBackgroundColor: {
+      ref: "foregroundColor",
+      mix: 0.07,
+      onto: "backgroundColor"
+    },
+    foregroundColor: "#FFF",
+    headerFontSize: 14
+  });
+
+// Function to fetch data from the API
+async function fetchDataFromApi(request: IServerSideGetRowsRequest) {
+  try {
+    const response = await fetch('/api/olympicWinners', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching data from API:', error);
+    return { success: false, rows: [], lastRow: 0 };
+  }
+}
+
+const App = () => {
+  const [loading, setLoading] = useState(false);
+
+  const [columnDefs, setColumnDefs] = useState<ColDef[]>([
+    { field: "athlete", minWidth: 220 },
+    { field: "country", minWidth: 200 },
+    {
+      field: "year",
+      filter: 'agNumberColumnFilter',
+    },
+    {
+      pinned: "left",
+      field: "sport",
+      minWidth: 200,
+      filter: true,
+    },
+    { field: "gold" },
+    { field: "silver" },
+    { field: "bronze" },
+  ]);
+  const defaultColDef = useMemo<ColDef>(() => {
+    return {
+      flex: 1,
+      minWidth: 100,
+      sortable: true,
+      filter: true,
+    };
+  }, []);
+
+
+  const datasource: IServerSideDatasource = useMemo(() => ({
+    getRows: (params: IServerSideGetRowsParams & {
+      success: (response: { rowData: any[], rowCount?: number }) => void;
+      fail: () => void;
+    }) => {
+      setLoading(true);
+      fetchDataFromApi(params.request)
+        .then(response => {
+          params.success({
+            rowData: response.rows,
+            rowCount: response.lastRow
+          });
+          setLoading(false);
+        })
+        .catch(error => {
+          console.error(error);
+          params.fail();
+          setLoading(false);
+        });
+    }
+  }), []);
+
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
+    <div className="w-screen h-screen bg-gray-500">
+      {loading && <div className="absolute top-2.5 right-2.5 px-2.5 py-1.5 rounded z-[1000]">Loading...</div>}
+      <div className="w-full h-full">
+        <AgGridReact<IOlympicData>
+          theme={myTheme}
+          serverSideDatasource={datasource}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          rowModelType={"serverSide"}
         />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
-}
+};
+
+
+
+export default App;
